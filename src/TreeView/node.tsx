@@ -66,7 +66,7 @@ export interface INodeGroupProps<M extends IFlatMetadata = IFlatMetadata>
 /**
  * It's convenient to pass props down to the child, but we don't want to pass everything since it would create incorrect values for setsize and posinset
  */
-const removeIrrelevantGroupProps = <M extends IFlatMetadata = IFlatMetadata,>(
+const removeIrrelevantGroupProps = <M extends IFlatMetadata = IFlatMetadata>(
   nodeProps: INodeProps<M>
 ): Omit<INodeGroupProps<M>, "getClasses"> => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -74,7 +74,9 @@ const removeIrrelevantGroupProps = <M extends IFlatMetadata = IFlatMetadata,>(
   return rest;
 };
 
-export const Node = <M extends IFlatMetadata = IFlatMetadata>(props: INodeProps<M>) => {
+export const Node = <M extends IFlatMetadata = IFlatMetadata>(
+  props: INodeProps<M>
+) => {
   const {
     element,
     dispatch,
@@ -324,18 +326,22 @@ export const NodeGroup = <M extends IFlatMetadata = IFlatMetadata>({
   <ul role="group" className={getClasses(baseClassNames.nodeGroup)}>
     {expandedIds.has(element.id) &&
       element.children.length > 0 &&
-      element.children.map((x, index) => (
-        <Node
-          data={data}
-          expandedIds={expandedIds}
-          baseClassNames={baseClassNames}
-          key={`${x}-${typeof x}`}
-          element={getTreeNode(data, x)}
-          setsize={element.children.length}
-          posinset={index + 1}
-          level={level + 1}
-          {...rest}
-        />
-      ))}
+      element.children.map((x, index) => {
+        const node = getTreeNode(data, x);
+        if (node == null) return null;
+        return (
+          <Node
+            data={data}
+            expandedIds={expandedIds}
+            baseClassNames={baseClassNames}
+            key={`${x}-${typeof x}`}
+            element={node}
+            setsize={element.children.length}
+            posinset={index + 1}
+            level={level + 1}
+            {...rest}
+          />
+        );
+      })}
   </ul>
 );

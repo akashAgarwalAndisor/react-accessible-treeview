@@ -48,14 +48,14 @@ export const usePreviousData = (value: INode[]) => {
 
 export const isBranchNode = (data: INode[], i: NodeId) => {
   const node = getTreeNode(data, i);
-  return !!node.children?.length;
+  return !!node?.children?.length;
 };
 
 export const getBranchNodesToExpand = (data: INode[], id: NodeId): NodeId[] => {
   const parentId = getParent(data, id);
   const isNodeExpandable =
     parentId &&
-    (isBranchNode(data, parentId) || getTreeNode(data, parentId).isBranch);
+    (isBranchNode(data, parentId) || getTreeNode(data, parentId)?.isBranch);
 
   if (!parentId || !isNodeExpandable) {
     return [];
@@ -76,7 +76,7 @@ export const focusRef = (ref: INodeRef) => {
 };
 
 export const getParent = (data: INode[], id: NodeId) => {
-  return getTreeNode(data, id).parent;
+  return getTreeNode(data, id)?.parent || null;
 };
 
 export const getAncestors = (
@@ -110,7 +110,7 @@ export const getDescendants = (
   const descendants: NodeId[] = [];
   const getDescendantsHelper = (data: INode[], id: NodeId) => {
     const node = getTreeNode(data, id);
-    if (node.children == null) return;
+    if (node?.children == null) return;
     for (const childId of node.children.filter((x) => !disabledIds.has(x))) {
       descendants.push(childId);
       getDescendantsHelper(data, childId);
@@ -123,13 +123,14 @@ export const getDescendants = (
 export const getChildren = (data: INode[], id: NodeId) => {
   const children: NodeId[] = [];
   const node = getTreeNode(data, id);
-  return node.children == null ? children : node.children;
+  return node?.children == null ? children : node.children;
 };
 
 export const getSibling = (data: INode[], id: NodeId, diff: number) => {
   const parentId = getParent(data, id);
   if (parentId != null) {
     const parent = getTreeNode(data, parentId);
+    if (parent == null) return null;
     const index = parent.children.indexOf(id);
     const siblingIndex = index + diff;
     if (parent.children[siblingIndex]) {
@@ -144,16 +145,30 @@ export const getLastAccessible = (
   id: NodeId,
   expandedIds: Set<NodeId>
 ) => {
-  let node = getTreeNode(data, id);
+  const findNode = getTreeNode(data, id);
+  if (findNode == null) return null;
+  let node: INode = findNode;
   const isRoot = getTreeParent(data).id === id;
   if (isRoot) {
-    node = getTreeNode(
-      data,
-      getTreeNode(data, id).children[getTreeNode(data, id).children.length - 1]
-    );
+    const mainNode = getTreeNode(data, id);
+    if (mainNode !== null) {
+      const lastChild = mainNode?.children[mainNode.children.length - 1];
+      if (lastChild !== null) {
+        const nodeToAdd = getTreeNode(data, lastChild);
+        if (nodeToAdd !== null) {
+          node = nodeToAdd;
+        }
+      }
+    }
   }
   while (expandedIds.has(node.id) && isBranchNode(data, node.id)) {
-    node = getTreeNode(data, node.children[node.children.length - 1]);
+    const nodeToAdd = getTreeNode(
+      data,
+      node.children[node.children.length - 1]
+    );
+    if (nodeToAdd !== null) {
+      node = nodeToAdd;
+    }
   }
   return node.id;
 };
@@ -178,9 +193,13 @@ export const getNextAccessible = (
   id: NodeId,
   expandedIds: Set<NodeId>
 ) => {
-  let nodeId: NodeId | null = getTreeNode(data, id).id;
+  let nodeId: NodeId | null = getTreeNode(data, id)?.id || null;
+  if (nodeId == null) return null;
   if (isBranchNode(data, nodeId) && expandedIds.has(nodeId)) {
-    return getTreeNode(data, nodeId).children[0];
+    const node = getTreeNode(data, nodeId)?.children[0];
+    if (node) {
+      return node;
+    }
   }
   while (true) {
     const next = getSibling(data, nodeId, 1);
@@ -220,11 +239,11 @@ export const propagateSelectChange = (
       ) {
         break;
       }
-      const enabledChildren = getTreeNode(data, parent).children.filter(
+      const enabledChildren = getTreeNode(data, parent)?.children.filter(
         (x) => !disabledIds.has(x)
       );
-      if (enabledChildren.length === 0) break;
-      const some = enabledChildren.some(
+      if (enabledChildren?.length === 0) break;
+      const some = enabledChildren?.some(
         (x) =>
           selectedIds.has(x) ||
           (changes.some.has(x) && !changes.none.has(x)) ||
@@ -252,7 +271,7 @@ export const propagateSelectChange = (
           changes.none.add(parent);
         }
       } else {
-        if (enabledChildren.every((x) => selectedIds.has(x))) {
+        if (enabledChildren?.every((x) => selectedIds.has(x))) {
           changes.every.add(parent);
         } else {
           changes.some.add(parent);
@@ -515,7 +534,9 @@ export const getOnSelectTreeAction = (
   return treeTypes.toggleSelect;
 };
 
-export const getTreeParent = <M extends IFlatMetadata = IFlatMetadata>(data: INode<M>[]): INode<M> => {
+export const getTreeParent = <M extends IFlatMetadata = IFlatMetadata>(
+  data: INode<M>[]
+): INode<M> => {
   const parentNode: INode<M> | undefined = data.find(
     (node) => node.parent === null
   );
@@ -527,11 +548,14 @@ export const getTreeParent = <M extends IFlatMetadata = IFlatMetadata>(data: INo
   return parentNode;
 };
 
-export const getTreeNode = <M extends IFlatMetadata = IFlatMetadata>(data: INode<M>[], id: NodeId): INode<M> => {
+export const getTreeNode = <M extends IFlatMetadata = IFlatMetadata>(
+  data: INode<M>[],
+  id: NodeId
+): INode<M> | null => {
   const treeNode = data.find((node) => node.id === id);
 
   if (treeNode == null) {
-    throw Error(`Node with id=${id} doesn't exist in the tree.`);
+    return null;
   }
 
   return treeNode;
